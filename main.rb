@@ -1,8 +1,11 @@
 require 'matrix'
 require 'mathn'
-def enter_button_click
+require 'tk'
+def enter_button_click(n)
   #do nothing
   p 'enter button'
+
+
 end
 def grid_click
   #do nothing
@@ -27,7 +30,7 @@ class Slae
   def get_size
     @slae.size
   end
-  def solve_by_gauss?
+  def solve_by_gauss
     (0...@slae.size).each{ |i|
       max_index = i
       max_element = @slae[i][i]
@@ -43,26 +46,38 @@ class Slae
     }
     (0...@slae.size).each{ |i| if @slae[i][i]!=0
                                  @slae[i] /= @slae[i][i]
-                                 p @slae
+                                 #p @slae
                                  (i+1...@slae.size).each{ |j| @slae[j] -= @slae[i] * @slae[j][i] }
-                                 p @slae
+                                 #p @slae
                                end
     }
-    p @slae
+    #p @slae
+    is_unlimited = false
+    #p @slae
     (1...@slae.size).to_a.reverse.each{ |i|
       (0...i).each{ |j| @slae[j] -= @slae[i] * @slae[j][i] }
       if @slae[i][i]==0
-        if @slae[i][i] == @slae[i][i+1]
-          p "Unlimited count of solutions"
-          return false
+        if @slae[i][i] == @slae[i][-1]
+          is_unlimited = true
         else
-          p "No solution"
-          return false
+          (0...@slae.size).each{|j|
+          if @slae[i][j]!=0
+            return 1
+          end}
+          return 2
         end
       end}
-    true
+    if is_unlimited
+      return 1
+    end
+    3
   end
-  def solve_by_holetsky?
+  def solve_by_holetsky
+    (0...@slae.size).each{ |i|
+    (i...@slae.size).each { |j|
+    if @slae[i][j]!=@slae[j][i]
+      return 4
+    end}}
     l_matrix = Array.new(@slae.size){Array.new(@slae.size+1,0)}
 
     (0...@slae.size).each{|i|
@@ -71,6 +86,9 @@ class Slae
         (0...j).each{ |k|
           temp+=l_matrix[i][k]*l_matrix[j][k]
         }
+        if l_matrix[j][j]==0
+          return 4
+        end
         l_matrix[i][j] = (@slae[i][j] - temp)/l_matrix[j][j]
       }
 
@@ -78,51 +96,47 @@ class Slae
       (0...i).each{ |k| temp-=l_matrix[i][k]*l_matrix[i][k]}
       l_matrix[i][i] = Math.sqrt(temp)
     }
-    p l_matrix
+    #p l_matrix
     lt_matrix = Array.new(@slae.size){Array.new(@slae.size+1,0)}
     (0...@slae.size).each{ |i| (0...@slae.size).each{|j|
       lt_matrix[i][j] = l_matrix[j][i]
       if l_matrix[j][i].is_a?(Complex)
-        p "System can't be solved by this method"
-        return false
+        return 4
       end}}
     (0...@slae.size).each{|i| l_matrix[i][-1]=@slae[i][-1]}
     l_matrix  = l_matrix.map{ |array| Vector[*array]}
     buffer_slae = Slae.new(l_matrix)
-    buffer_slae.solve_by_gauss?
+    if buffer_slae.solve_by_gauss != 3
+      return 4
+    end
     (0...@slae.size).each{|i| lt_matrix[i][-1] = buffer_slae.get_slae(i, -1)}
     lt_matrix  = lt_matrix.map{ |array| Vector[*array]}
     buffer_slae = Slae.new(lt_matrix)
-    buffer_slae.solve_by_gauss?
-    @slae = buffer_slae.get_full_table
-    true
-  end
-end
-class Main
-  def initialize
-    #first = Slae.new([Vector[81,-45,45,531], Vector[-45,50,-15,-460], Vector[45,-15,38,193]])
-    #first = Slae.new([Vector[1,1,1,6], Vector[1,0,1,-2], Vector[1,2,1,14]])
-    #first = Slae.new([Vector[3.43,3.38,3.09,5.52], Vector[4.17,4.00,3.65,5.93], Vector[4.30,4.10,3.67,7.29]])
-    p "Please enter dimension of matrix"
-    dimension = gets.chomp.to_i
-    matrix_array = Array.new(dimension){Array.new(dimension+1,0)}
-    (0...dimension).each{|i| (0...dimension+1).each{|j|
-      p "Please, enter ["+ i.to_s + "]["+j.to_s+"] element"
-      matrix_array[i][j] = gets.chomp.to_f}}
-    p  matrix_array
-    slae = Slae.new(matrix_array.map{|array| Vector[*array]})
-    p "Choose variant of solving"
-    p "1. Holetsky"
-    p "2. Gauss"
-    case gets.chomp.to_i
-      when(1)
-        slae.solve_by_holetsky? ?
-            (0...slae.get_size).each { |i| p slae.get_slae(i, -1) } : p {"try yet another"}
-      when(2)
-        slae.solve_by_gauss? ?
-            (0...slae.get_size).each { |i| p slae.get_slae(i, -1) } : p {"try yet another"}
+    if buffer_slae.solve_by_gauss != 3
+      return 4
     end
+    @slae = buffer_slae.get_full_table
+    3
   end
 end
-Main.new
-gets.chomp
+main_window = TkRoot.new('title'=>'DIVM'){ minsize(500,400); padx 10; pady 10}
+controls_frame = Tk::Tile::Frame.new(main_window).pack('fill'=>'x')
+label = Tk::Tile::Label.new(controls_frame, 'text'=>'Enter dimentions of matrix ').pack('side'=>'left')
+dimentions_spinbox = Tk::Tile::Spinbox.new(controls_frame) do
+  to 15
+  from 1
+  increment 1
+  state 'readonly'
+  pack('side'=>'left')
+end
+enter_button = Tk::Tile::Button.new(controls_frame,'text'=>'enter').pack('side'=>'left')
+enter_button.bind("1", proc{enter_button_click(dimentions_spinbox.get.to_i)})
+solve_button = Tk::Tile::Button.new(controls_frame,'text'=>'solve').pack('side'=>'right')
+choose_method_box = Tk::Tile::Combobox.new(controls_frame) do
+  values  ["Gauss","Holetsky"]
+  state 'readonly'
+  pack('side'=>'right')
+end
+
+
+Tk.mainloop
